@@ -52,6 +52,63 @@ def niu_in_range2(image, lower_bound, upper_bound):
     return mask
 
 
+def niu_bitwise_and(image1, image2, mask=None):
+    """
+    使用自定义函数实现 cv2.bitwise_and 的基本功能。
+
+    Args:
+        image1 (numpy.ndarray): 输入的第一幅图像。
+        image2 (numpy.ndarray): 输入的第二幅图像，通常与第一幅图像相同。
+        mask (numpy.ndarray, optional): 掩模图像，决定哪些像素进行按位与操作。
+
+    Returns:
+        numpy.ndarray: 按位与操作后的结果图像。
+    """
+    # 确保输入图像大小相同
+    assert image1.shape == image2.shape, "输入图像大小必须相同"
+
+    # 初始化输出图像，与输入图像大小相同
+    result = np.zeros_like(image1, dtype=np.uint8)
+
+    # 获取图像的高度和宽度
+    height, width = image1.shape[:2]
+
+    # 遍历图像中的每个像素点
+    for y in range(height):
+        for x in range(width):
+            # 如果没有掩模或者掩模中对应位置的值为 255，则进行按位与操作
+            if mask is None or mask[y, x] == 255:
+                result[y, x] = image1[y, x] & image2[y, x]
+
+    return result
+
+
+def niu_find_mask_center(mask):
+    """
+    根据二值掩模图像计算包含物体的中心点坐标。
+
+    Args:
+        mask (numpy.ndarray): 二值掩模图像，像素值为 0 或 255。
+
+    Returns:
+        tuple: 包含物体的中心点的 (x, y) 坐标。
+    """
+    # 查找轮廓
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if len(contours) == 0:
+        return None
+
+    # 找到最大的轮廓
+    largest_contour = max(contours, key=cv2.contourArea)
+
+    # 计算轮廓的矩
+    M = cv2.moments(largest_contour)
+    if M["m00"] != 0:
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
+        return (cX, cY)
+    else:
+        return None
 
 
 
@@ -82,43 +139,26 @@ def main():
     upper_red_2 = np.array([180, 255, 255])
 
     # setp3
-
-    # mask = hsv.copy()  # 拷贝一份原始图像，作为掩模来操作
-    # height, width, _ = mask.shape  # 获取图像的高度和宽度
-    # # 遍历图像中的每个像素点
-    # for y in range(height):
-    #     for x in range(width):
-    #         # 获取当前像素点的值
-    #         pixel = mask[y, x]
-    #
-    #         # 检查当前像素是否在下界和上界之间
-    #         if np.all(pixel >= lower_red_1) and np.all(pixel <= upper_red_1):
-    #             # 如果在范围内，设置为 255（白色）
-    #             mask[y, x] = [255, 255, 255]
-    #         else:
-    #             # 如果不在范围内，设置为 0（黑色）
-    #             mask[y, x] = [0, 0, 0]
+    mask1 = niu_in_range2(hsv, lower_red_1, upper_red_1)
+    mask2 = niu_in_range2(hsv, lower_red_2, upper_red_2)
+    mask = mask1 | mask2
 
 
-
-
-
-
-
-
-
-    mask = niu_in_range2(hsv, lower_red_1, upper_red_1)
-
-
-
-
-
-
+    #step4
+    # 根据掩模计算中心点
+    center = niu_find_mask_center(mask)
+    if center is not None:
+        cX, cY = center
+        # 打印中心点坐标
+        print(f"Center of the object: ({cX}, {cY})")
+        # 在原始图像上绘制中心点
+        cv2.circle(frame, (cX, cY), 5, (0, 255, 0), -1)
+        cv2.putText(frame, "Center", (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
 
 
     # 显示处理后的图像
-    cv2.imshow('Processed Image', mask)
+    cv2.imshow('Processed Image', frame)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
