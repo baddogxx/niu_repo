@@ -22,8 +22,41 @@
 物体标记算法演示demo中使用了一张红色小球主体，白色背景的测试图像（如下图所示），在测试图片中小球作为ROI区域与背景的主要区别是其颜色，人眼可以通过这一点将其与背景区分开来。本项目通过算法处理能够在图片中以绿色方框标记红色小球轮廓并返回小球中心点坐标。下面介绍具体算法流程：   
 ![alt text](red_ball.jpg)
 ## 2.算法流程
+最基本的处理算法使用OpenCV库函数实现，打包封装后的处理函数如下：
+```
+def process_image(frame): 
+    # 将图像从 BGR 转换为 HSV 色彩空间
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # 定义红色的 HSV 范围
+    lower_red_1 = np.array([0, 120, 70])
+    upper_red_1 = np.array([10, 255, 255])
+    lower_red_2 = np.array([170, 120, 70])
+    upper_red_2 = np.array([180, 255, 255])
+
+    # 根据 HSV 范围构建掩模，检测红色
+    mask1 = cv2.inRange(hsv, lower_red_1, upper_red_1)
+    mask2 = cv2.inRange(hsv, lower_red_2, upper_red_2)
+    mask = mask1 | mask2
+
+    # 使用掩模提取红色区域
+    result = cv2.bitwise_and(frame, frame, mask=mask)
+
+    # 找到红色物体的轮廓
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # 在原图上叠加方框
+    for contour in contours:
+        if cv2.contourArea(contour) > 500:  # 过滤掉较小的噪声轮廓
+            x, y, w, h = cv2.boundingRect(contour)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)  # 绿色方框
+
+    return frame
+```
 ### 2.1 色彩空间转换
-    
+首先使用cv2.imread()函数读入本地路径中的jpg格式的图像。
+    示例代码中使用OpenCV库中的cv2.cvtColor()函数实现了图像的RGB色彩空间到HSV色彩空间的转化，传入参数选择预设类型cv2.COLOR_BGR2HSV将BGR图像转换为HSV图像。
+
 #### 2.1.1 定义红色HSV范围
 
 ### 2.2 构建掩膜
