@@ -86,7 +86,7 @@ def process_image(frame):
 # import cv2
 # import numpy as np
 #
-# def process_image(frame):
+# def process_image(frame): 
 #     # 将图像从 BGR 转换为 HSV 色彩空间
 #     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 #

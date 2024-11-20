@@ -30,7 +30,7 @@ def niu_in_range1(image, lower_bound, upper_bound):
             # 检查当前像素是否在下界和上界之间
             if np.all(pixel >= lower_bound) and np.all(pixel <= upper_bound):
                 # 如果在范围内，设置为 255（白色）
-                mask[y, x] = 255
+                mask[y, x] = 255 
 
     return mask
 
@@ -93,19 +93,26 @@ def niu_find_mask_center(mask):
     Returns:
         tuple: 包含物体的中心点的 (x, y) 坐标。
     """
-    # 查找轮廓
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if len(contours) == 0:
-        return None
+    # 获取图像的高度和宽度
+    height, width = mask.shape[:2]
 
-    # 找到最大的轮廓
-    largest_contour = max(contours, key=cv2.contourArea)
+    # 初始化一些变量来计算中心点
+    total_x = 0
+    total_y = 0
+    total_points = 0
 
-    # 计算轮廓的矩
-    M = cv2.moments(largest_contour)
-    if M["m00"] != 0:
-        cX = int(M["m10"] / M["m00"])
-        cY = int(M["m01"] / M["m00"])
+    # 遍历图像中的每个像素点
+    for y in range(height):
+        for x in range(width):
+            if mask[y, x] == 255:
+                total_x += x
+                total_y += y
+                total_points += 1
+
+    # 如果找到了白色像素点，计算中心点坐标
+    if total_points > 0:
+        cX = total_x // total_points
+        cY = total_y // total_points
         return (cX, cY)
     else:
         return None
@@ -139,10 +146,10 @@ def main():
     upper_red_2 = np.array([180, 255, 255])
 
     # setp3
+    # 定义红色的 HSV 范围
     mask1 = niu_in_range2(hsv, lower_red_1, upper_red_1)
     mask2 = niu_in_range2(hsv, lower_red_2, upper_red_2)
     mask = mask1 | mask2
-
 
     #step4
     # 根据掩模计算中心点
