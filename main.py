@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 from process_image import process_image
 
 
@@ -146,10 +147,15 @@ def main():
     upper_red_2 = np.array([180, 255, 255])
 
     # setp3
-    # 定义红色的 HSV 范围
+    start_time = time.time()                                #开始计时
     mask1 = niu_in_range2(hsv, lower_red_1, upper_red_1)
+    end_time = time.time()                                  #结束计时
+    print(f"The time it takes is: {end_time - start_time:.4f} seconds")
+
     mask2 = niu_in_range2(hsv, lower_red_2, upper_red_2)
     mask = mask1 | mask2
+
+
 
     #step4
     # 根据掩模计算中心点
