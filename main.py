@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import concurrent.futures
 import time
 from process_image import process_image
 
@@ -51,6 +52,76 @@ def niu_in_range2(image, lower_bound, upper_bound):
     mask = np.all((image >= lower_bound) & (image <= upper_bound), axis=-1)  # 获取符合条件的布尔值矩阵
     mask = (mask * 255).astype(np.uint8)  # 将布尔值矩阵转换为 0 和 255 的掩模
     return mask
+
+
+def niu_in_range3(image, lower_bound, upper_bound, block_size=(256, 256)):
+    """
+    使用并行化和分块处理的方式，结合向量化操作，检查图像中的每个像素是否在指定的颜色范围内。
+
+    Args:
+        image (numpy.ndarray): 输入图像，通常为 HSV 或 BGR 格式的三维 NumPy 数组。
+        lower_bound (numpy.ndarray or list or tuple): 颜色范围的下界，用于定义每个通道的最小值。
+        upper_bound (numpy.ndarray or list or tuple): 颜色范围的上界，用于定义每个通道的最大值。
+        block_size (tuple): 分块的大小，默认为 (32, 32)。
+
+    Returns:
+        numpy.ndarray: 返回一个与输入图像大小相同的二值掩模图像，其中符合条件的像素设置为 255（白色），其余为 0（黑色）。
+    """
+    height, width = image.shape[:2]
+    block_height, block_width = block_size
+    mask = np.zeros(image.shape[:2], dtype=np.uint8)
+
+    def process_block(y, x):
+        """处理每个块的函数"""
+        block = image[y:y + block_height, x:x + block_width]
+        block_mask = np.all((block >= lower_bound) & (block <= upper_bound), axis=-1)
+        return (y, x, block_mask)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # 遍历图像的每个小块并并行处理
+        futures = []
+        for y in range(0, height, block_height):
+            for x in range(0, width, block_width):
+                futures.append(executor.submit(process_block, y, x))
+
+        # 更新掩模
+        for future in concurrent.futures.as_completed(futures):
+            y, x, block_mask = future.result()
+            mask[y:y + block_height, x:x + block_width] = np.where(block_mask, 255,
+                                                                   mask[y:y + block_height, x:x + block_width])
+
+    return mask
+
+def niu_in_range4(image, lower_bound, upper_bound):
+    """
+    使用 OpenCV CUDA 加速检查图像中的每个像素是否在指定的颜色范围内。
+
+    Args:
+        image (numpy.ndarray): 输入图像，通常为 HSV 或 BGR 格式的三维 NumPy 数组。
+        lower_bound (numpy.ndarray or list or tuple): 颜色范围的下界，用于定义每个通道的最小值。
+        upper_bound (numpy.ndarray or list or tuple): 颜色范围的上界，用于定义每个通道的最大值。
+
+    Returns:
+        numpy.ndarray: 返回一个与输入图像大小相同的二值掩模图像，其中符合条件的像素设置为 255（白色），其余为 0（黑色）。
+    """
+    # 将图像从 CPU 传输到 GPU
+    gpu_image = cv2.cuda_GpuMat()
+    gpu_image.upload(image)
+
+    # 将颜色范围也从 CPU 传输到 GPU
+    gpu_lower = cv2.cuda_GpuMat()
+    gpu_lower.upload(lower_bound)
+    gpu_upper = cv2.cuda_GpuMat()
+    gpu_upper.upload(upper_bound)
+
+    # 使用 GPU 执行颜色范围检查
+    gpu_mask = cv2.cuda.inRange(gpu_image, gpu_lower, gpu_upper)
+
+    # 将结果从 GPU 下载回 CPU
+    mask = gpu_mask.download()
+
+    return mask
+
 
 
 def niu_bitwise_and(image1, image2, mask=None):
@@ -148,7 +219,7 @@ def main():
 
     # setp3
     start_time = time.time()                                #开始计时
-    mask1 = niu_in_range2(hsv, lower_red_1, upper_red_1)
+    mask1 = niu_in_range3(hsv, lower_red_1, upper_red_1)
     end_time = time.time()                                  #结束计时
     print(f"The time it takes is: {end_time - start_time:.4f} seconds")
 
@@ -168,8 +239,7 @@ def main():
         cv2.circle(frame, (cX, cY), 5, (0, 255, 0), -1)
         cv2.putText(frame, "Center", (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-
-
+    print(cv2.getBuildInformation())
     # 显示处理后的图像
     cv2.imshow('Processed Image', frame)
     cv2.waitKey(0)
