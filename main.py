@@ -219,7 +219,7 @@ def main():
 
     # setp3
     start_time = time.time()                                #开始计时
-    mask1 = niu_in_range3(hsv, lower_red_1, upper_red_1)
+    mask1 = niu_in_range1(hsv, lower_red_1, upper_red_1)
     end_time = time.time()                                  #结束计时
     print(f"The time it takes is: {end_time - start_time:.4f} seconds")
 
@@ -239,7 +239,7 @@ def main():
         cv2.circle(frame, (cX, cY), 5, (0, 255, 0), -1)
         cv2.putText(frame, "Center", (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-    print(cv2.getBuildInformation())
+    #print(cv2.getBuildInformation())
     # 显示处理后的图像
     cv2.imshow('Processed Image', frame)
     cv2.waitKey(0)
